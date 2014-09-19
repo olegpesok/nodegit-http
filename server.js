@@ -13,10 +13,12 @@ var PORT = process.argv[3] || process.env.PORT ||
 
 var app = express();
 
+var repoRegex = /^\w[\w\+\-\.]*$/;
+
 // Handle params
 
 app.param('repo', function (req, res, next, name) {
-  if (!/^\w[\w\+\-\.]*$/.test(name)) {
+  if (!repoRegex.test(name)) {
     next("Invalid repo name");
   } else {
     git.Repo.open(BASE_DIR+"/"+name+".git", function (err, repo) {
@@ -35,6 +37,24 @@ app.param('sha', function (req, res, next, sha) {
   } else {
     next();
   }
+});
+
+// List repos
+
+app.get('/repos', function(req, res) {
+    fs.readdir(BASE_DIR, function(err, repos) {
+        if (err) {
+            res.status(500).json({ error: err.toString() });
+        } else {
+            res.status(200).json(
+                _.filter(repos, function(repo) {
+                    return repo && repo.indexOf('.git') === repo.length - 4 &&
+                        repoRegex.test(repo.substring(0, repo.length - 4));
+                }).map(function(repo) {
+                    return repo.substring(0, repo.length - 4);
+                }));
+        }
+    });
 });
 
 // Refrerences
